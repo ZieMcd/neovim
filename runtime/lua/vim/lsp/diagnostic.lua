@@ -373,7 +373,6 @@ function M._refresh(bufnr, client_id, only_visible)
   local method = 'textDocument/diagnostic'
   local clients = lsp.get_clients({ bufnr = bufnr, method = method, id = client_id })
   local bufstate = bufstates[bufnr]
-
   util._cancel_requests({
     bufnr = bufnr,
     clients = clients,
@@ -382,11 +381,18 @@ function M._refresh(bufnr, client_id, only_visible)
   })
   for _, client in ipairs(clients) do
     ---@type lsp.DocumentDiagnosticParams
-    local params = {
-      textDocument = util.make_text_document_params(bufnr),
-      previousResultId = bufstate.client_result_id[client.id],
-    }
-    client:request(method, params, nil, bufnr)
+    local registrations = client.registrations.diagnosticProvider
+
+    for _, reg in ipairs(registrations) do
+      if reg.method == 'textDocument/diagnostic' then
+        local params = {
+          textDocument = util.make_text_document_params(bufnr),
+          previousResultId = bufstate.client_result_id[client.id],
+          identifier = reg.registerOptions.identifier,
+        }
+        client:request(method, params, nil, bufnr)
+      end
+    end
   end
 end
 
